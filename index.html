@@ -33,8 +33,8 @@
         }
         #gameToggle {
             display: inline-block;
-            width: 18px;
-            height: 18px;
+            width: 24px;
+            height: 24px;
             position: relative;
             vertical-align: middle;
             transition: transform 0.2s ease;
@@ -44,11 +44,11 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(180deg);
+            transform: translate(-50%, -50%) rotate(0deg);
             width: 0;
             height: 0;
             border-style: solid;
-            border-width: 6px 0 6px 10px;
+            border-width: 9px 0 9px 15px;
             border-color: transparent transparent transparent #666;
         }
         #gameToggle.expanded::after {
@@ -162,6 +162,9 @@
         <div id="history"></div>
         <div id="historyEmpty" style="color:#999;padding:12px 0;display:none;">暂无历史记录</div>
 
+        <!-- 占位空白：向下移动约两页屏幕高度 -->
+        <div style="height: 200vh;"></div>
+
         <!-- 小游戏折叠区域 -->
         <div id="gameHeader">
             <span>放松一下</span>
@@ -237,7 +240,7 @@
             val = unformatThousands(val).replace(/。/g, '.');
             if (!/^-?\d+(\.\d+)?$/.test(val)) return '格式错误';
             const pure = val.replace('-', '').replace('.', '');
-            if (pure.length > 16) return '数字过大（最多16位整数）';
+            if (pure.length > 16) return '数字过大（最多16位整数）');
             if (val.includes('.')) {
                 const d = val.split('.')[1];
                 if (d.length > 2) return '最多2位小数';
@@ -516,10 +519,8 @@
         function update() {
             if (gameOver) return;
 
-            // 动态速度：基础4，每分增加0.02，200分时为8
             const currentSpeed = 4 + score * 0.02;
 
-            // 恐龙物理
             dino.vy += dino.gravity;
             dino.y += dino.vy;
 
@@ -529,13 +530,11 @@
                 dino.grounded = true;
             }
 
-            // 障碍物移动
             for (let obs of obstacles) {
                 obs.x -= currentSpeed;
             }
             obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
 
-            // 碰撞检测
             const dinoRect = {
                 x: dino.x,
                 y: dino.y,
@@ -555,7 +554,6 @@
                 }
             }
 
-            // 动态生成障碍物（随机间隔，后期更密）
             if (!gameOver && frameCount >= nextSpawnFrame) {
                 spawnObstacle();
                 const baseInterval = 80;
@@ -566,7 +564,6 @@
                 nextSpawnFrame = frameCount + nextInterval;
             }
 
-            // 计分
             if (!gameOver && frameCount % 10 === 0) {
                 score++;
                 gameScoreSpan.textContent = '得分: ' + score;
@@ -578,11 +575,9 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 根据深色模式调整地面线条颜色
             const isDark = document.body.classList.contains('dark-mode');
             const groundColor = isDark ? '#aaa' : '#555';
 
-            // 地面
             ctx.beginPath();
             ctx.strokeStyle = groundColor;
             ctx.lineWidth = 1;
@@ -590,22 +585,18 @@
             ctx.lineTo(canvas.width, groundY);
             ctx.stroke();
 
-            // 恐龙（红色身体）
             ctx.fillStyle = gameOver ? '#888' : '#c0392b';
             ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
-            // 眼睛
             ctx.fillStyle = '#fff';
             ctx.fillRect(dino.x + 18, dino.y + 8, 6, 6);
             ctx.fillStyle = '#000';
             ctx.fillRect(dino.x + 20, dino.y + 10, 3, 3);
 
-            // 障碍物（绿色）
             for (let obs of obstacles) {
                 ctx.fillStyle = '#2d5a27';
                 ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
             }
 
-            // 游戏结束提示
             if (gameOver) {
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -642,7 +633,6 @@
             }
         }
 
-        // 折叠面板切换（使用 CSS 三角形类名）
         gameHeader.addEventListener('click', () => {
             const isVisible = gameSection.style.display === 'block';
             if (isVisible) {
@@ -656,7 +646,6 @@
             }
         });
 
-        // 初始隐藏游戏，三角形默认指向右（未展开）
         gameSection.style.display = 'none';
         gameToggle.classList.remove('expanded');
     </script>
