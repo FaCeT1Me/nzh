@@ -51,6 +51,9 @@
             text-align: center;
             margin: 6px 0 12px;
         }
+        .dark-mode #gameTip {
+            color: #aaa;
+        }
         #gameScore {
             text-align: center;
             font-weight: bold;
@@ -69,6 +72,35 @@
         }
         .dark-mode #gameHighScore {
             color: #ccc;
+        }
+
+        /* ========== 全局深色模式补充 ========== */
+        .dark-mode {
+            color: #eee;
+        }
+        .dark-mode input,
+        .dark-mode button {
+            background-color: #333;
+            color: #eee;
+            border: 1px solid #555;
+        }
+        .dark-mode #result {
+            color: #eee;
+        }
+        .dark-mode #history {
+            color: #ddd;
+        }
+        .dark-mode #history > div {
+            border-bottom-color: #444;
+        }
+        .dark-mode #historyEmpty {
+            color: #999;
+        }
+        .dark-mode #gameHeader {
+            border-top-color: #444;
+        }
+        .dark-mode #clearHistory {
+            color: #aaa !important;
         }
     </style>
 </head>
@@ -522,9 +554,13 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // 根据深色模式调整地面线条颜色
+            const isDark = document.body.classList.contains('dark-mode');
+            const groundColor = isDark ? '#aaa' : '#555';
+
             // 地面
             ctx.beginPath();
-            ctx.strokeStyle = '#555';
+            ctx.strokeStyle = groundColor;
             ctx.lineWidth = 1;
             ctx.moveTo(0, groundY);
             ctx.lineTo(canvas.width, groundY);
