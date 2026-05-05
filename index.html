@@ -9,7 +9,6 @@
 
 <body style="margin:0;font-family:sans-serif;">
 
-<!-- 顶部（固定结构，不会被历史挤） -->
 <div style="max-width:480px;margin:0 auto;padding:20px;box-sizing:border-box;">
 
   <h2 style="margin-top:10px;">数字转中文金额</h2>
@@ -21,18 +20,15 @@
 
   <button onclick="convert()">转换</button>
 
-  <!-- 结果（点击复制） -->
   <p id="result"
-     style="margin-top:20px;font-size:26px;font-weight;word-break:break-all;cursor:pointer;line-height:1.4;"></p>
+     style="margin-top:20px;font-size:26px;font-weight:700;word-break:break-all;cursor:pointer;line-height:1.4;transition:transform 0.15s ease;"></p>
 
-  <!-- 提示 -->
   <p id="toast" style="height:18px;font-size:13px;"></p>
 
 </div>
 
 <hr>
 
-<!-- 历史区域（独立，不影响上方布局） -->
 <div style="max-width:480px;margin:0 auto;padding:0 20px 40px;box-sizing:border-box;">
 
   <b>历史</b>
@@ -42,53 +38,42 @@
 
 <script>
 
-// ===== 转换（仅金额 + 简体）=====
-
-// ===== 输入校验 =====
+// ===== 校验 =====
 function validateInput(val){
-
   if(!val) return '请输入数字';
 
-  // 去掉空格
   val = val.trim();
 
-  // 基础格式校验
   if(!/^-?\d+(\.\d+)?$/.test(val)){
     return '格式错误';
   }
 
-  // 限制长度（防止极大数）
   const pure = val.replace('-', '').replace('.', '');
   if(pure.length > 16){
     return '数字过大';
   }
 
-  // 小数位限制（金额一般最多2位）
   if(val.includes('.')){
-    const decimal = val.split('.')[1];
-    if(decimal.length > 2){
-      return '最多支持2位小数';
+    const d = val.split('.')[1];
+    if(d.length > 2){
+      return '最多2位小数';
     }
   }
 
-  return null; // 合法
+  return null;
 }
-
 
 // ===== 转换 =====
 function convert(){
-  const inputEl = document.getElementById('num');
-  let val = inputEl.value;
+  const val = document.getElementById('num').value;
 
-  const error = validateInput(val);
-
-  if(error){
-    setResult(error);
+  const err = validateInput(val);
+  if(err){
+    setResult(err);
     return;
   }
 
-  let res = '';
-
+  let res;
   try{
     res = Nzh.cn.toMoney(val);
   }catch{
@@ -100,20 +85,33 @@ function convert(){
   saveHistory(val, res);
 }
 
-
 // ===== 结果 =====
 function setResult(text){
   document.getElementById('result').innerText = text;
 }
 
-// 点击复制
-document.getElementById('result').addEventListener('click', ()=>{
-  const text = document.getElementById('result').innerText;
+// ===== 点击结果（弹性回弹 + 复制）=====
+const resultEl = document.getElementById('result');
+
+resultEl.addEventListener('click', ()=>{
+  const text = resultEl.innerText;
   if(!text) return;
 
   navigator.clipboard.writeText(text)
     .then(()=> showToast('已复制'))
     .catch(()=> showToast('复制失败'));
+
+  // 弹性反馈
+  resultEl.style.transform = 'scale(1.06)';
+
+  setTimeout(()=>{
+    resultEl.style.transform = 'scale(1)';
+  }, 140);
+});
+
+// ===== 回车触发 =====
+document.getElementById('num').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') convert();
 });
 
 // ===== toast =====
@@ -131,7 +129,6 @@ const KEY = 'nzh_history';
 function saveHistory(input, output){
   let list = JSON.parse(localStorage.getItem(KEY) || '[]');
 
-  // 去重
   list = list.filter(i => i.input !== input);
 
   list.unshift({input, output});
@@ -147,33 +144,28 @@ function renderHistory(){
   const el = document.getElementById('history');
 
   el.innerHTML = list.map(i =>
-    `<div style="padding:6px 0;border-bottom:1px solid #ccc;cursor:pointer;">
+    `<div style="padding:8px 0;border-bottom:1px solid #ccc;cursor:pointer;">
       ${i.input} → ${i.output}
-     </div>`
+    </div>`
   ).join('');
 
-  // 点击填充
   Array.from(el.children).forEach((div, idx)=>{
     div.onclick = ()=>{
       document.getElementById('num').value = list[idx].input;
+      convert(); // ⭐ 自动重新计算
     };
   });
 }
 
-// 初始化历史
-renderHistory();
-
-// ===== 自动跟随系统主题（无手动）=====
+// ===== 主题 =====
 (function(){
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  if(dark){
-    document.body.style.background = '#111';
-    document.body.style.color = '#eee';
-  }else{
-    document.body.style.background = '#fff';
-    document.body.style.color = '#000';
-  }
+  document.body.style.background = dark ? '#111' : '#fff';
+  document.body.style.color = dark ? '#eee' : '#000';
 })();
+
+// 初始化
+renderHistory();
 
 </script>
 
