@@ -57,7 +57,6 @@
         // ========== 千分位格式化 ==========
         function formatThousands(numStr) {
             if (!numStr) return numStr;
-            // 先去除可能已有的逗号，避免重复格式化
             numStr = numStr.replace(/,/g, '');
             let negative = false;
             if (numStr.startsWith('-')) {
@@ -68,7 +67,6 @@
             const intPart = parts[0];
             const decPart = parts.length > 1 ? parts[1] : '';
 
-            // 整数部分每3位加逗号（从右往左）
             const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
             let result = (negative ? '-' : '') + formattedInt;
@@ -92,7 +90,6 @@
 
         // ========== Toast 提示 ==========
         let toastTimer;
-
         function showToast(msg) {
             toastEl.textContent = msg;
             clearTimeout(toastTimer);
@@ -115,11 +112,10 @@
             }
         }
 
-        // ========== 校验（接收纯数字字符串） ==========
+        // ========== 校验 ==========
         function validateInput(val) {
             if (!val) return '请输入数字';
             val = val.trim();
-            // 去除千分位逗号，以及将中文句号替换为英文小数点
             val = unformatThousands(val).replace(/。/g, '.');
             if (!/^-?\d+(\.\d+)?$/.test(val)) {
                 return '格式错误';
@@ -135,12 +131,11 @@
             return null;
         }
 
-        // ========== 核心转换 ==========
-        function convert() {
+        // ========== 核心转换 (支持来自历史点击的标记) ==========
+        function convert(options = {}) {
+            const { isHistoryClick = false } = options;
             let rawVal = numInput.value;
-            // 中文句号替换为英文小数点
             rawVal = rawVal.replace(/。/g, '.');
-            // 去除千分位逗号得到纯数字
             const val = unformatThousands(rawVal);
             const err = validateInput(val);
 
@@ -155,7 +150,10 @@
             try {
                 const res = Nzh.cn.toMoney(val);
                 setResult(res);
-                saveHistory(val, res);
+                // 只有非历史点击时才保存/更新历史（会去重置顶）
+                if (!isHistoryClick) {
+                    saveHistory(val, res);
+                }
                 haptic();
             } catch (e) {
                 setResult('转换失败');
@@ -164,29 +162,23 @@
         }
 
         // ========== 输入框事件 ==========
-        // 回车触发
         numInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                convert();
+                convert(); // 正常转换，会保存历史
             }
         });
 
-        // 失去焦点时自动添加千分位（句号也会被标准化为小数点）
         numInput.addEventListener('blur', () => {
             let rawVal = numInput.value.trim();
             if (!rawVal) return;
-            // 中文句号替换为英文小数点
             rawVal = rawVal.replace(/。/g, '.');
             const cleaned = unformatThousands(rawVal);
             if (/^-?\d+(\.\d*)?$/.test(cleaned) && cleaned.replace('-', '').replace('.', '').length > 0) {
-                // 是有效数字，格式化为千分位并显示
                 numInput.value = formatThousands(cleaned);
             }
-            // 无效内容保持原样
         });
 
-        // 获得焦点时去除千分位逗号，方便编辑
         numInput.addEventListener('focus', () => {
             const rawVal = numInput.value;
             const cleaned = unformatThousands(rawVal);
@@ -220,14 +212,13 @@
 
         function saveHistory(input, output) {
             let list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            // 去重：相同输入只保留最新
+            // 去重并置顶（正常转换时使用）
             list = list.filter(item => item.input !== input);
             list.unshift({
                 input,
                 output,
                 time: Date.now()
             });
-            // 最多保留20条
             list = list.slice(0, 20);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
             renderHistory();
@@ -285,9 +276,9 @@
         function fillFromHistory(index) {
             const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
             if (index >= 0 && index < list.length) {
-                // 填入时显示千分位格式（焦点事件会移除逗号，但点击历史后通常输入框会失焦，保持千分位显示）
                 numInput.value = formatThousands(list[index].input);
-                convert();
+                // 标记为历史点击，避免改变排序
+                convert({ isHistoryClick: true });
             }
         }
 
@@ -300,6 +291,7 @@
             } else {
                 historyEmpty.style.display = 'none';
                 list.forEach((item, idx) => {
+                    const rowNumber = idx + 1;
                     const timeStr = new Date(item.time).toLocaleString('zh-CN', {
                         month: 'numeric',
                         day: 'numeric',
@@ -308,31 +300,37 @@
                     });
                     const div = document.createElement('div');
                     div.style.cssText =
-                        'padding:8px 0;border-bottom:1px solid #ccc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;';
+                        'padding:8px 0;border-bottom:1px solid #ccc;cursor:pointer;display:flex;align-items:center;';
 
+                    // 行号
+                    const numSpan = document.createElement('span');
+                    numSpan.textContent = rowNumber + '. ';
+                    numSpan.style.cssText = 'color:#999;margin-right:8px;min-width:24px;text-align:right;user-select:none;';
+                    div.appendChild(numSpan);
+
+                    // 左侧内容
                     const leftSpan = document.createElement('span');
-                    // 历史记录中显示千分位格式的数字
                     leftSpan.textContent = `${formatThousands(item.input)} → ${item.output}`;
                     leftSpan.style.flex = '1';
                     leftSpan.style.wordBreak = 'break-all';
+                    div.appendChild(leftSpan);
 
+                    // 右侧时间与删除
                     const rightSpan = document.createElement('span');
                     rightSpan.innerHTML =
                         `<span style="color:#888;font-size:12px;margin-right:8px;">${timeStr}</span><span style="color:crimson;font-weight:bold;cursor:pointer;user-select:none;" title="删除">✕</span>`;
+                    div.appendChild(rightSpan);
 
-                    // 点击删除
+                    // 删除按钮事件
                     rightSpan.querySelector('span:last-child').addEventListener('click', (e) => {
                         e.stopPropagation();
                         deleteHistoryItem(idx);
                     });
 
-                    div.appendChild(leftSpan);
-                    div.appendChild(rightSpan);
-
-                    // 点击填充并转换
+                    // 点击整个条目
                     div.addEventListener('click', () => {
                         numInput.value = formatThousands(item.input);
-                        convert();
+                        convert({ isHistoryClick: true });
                         historyNavIndex = idx;
                         haptic();
                     });
