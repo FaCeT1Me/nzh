@@ -14,7 +14,7 @@
 
   <h2 style="margin-top:10px;">数字转中文金额</h2>
 
-  <input id="num" placeholder="输入数字"
+  <input id="num" inputmode="decimal" placeholder="输入数字"
     style="width:100%;padding:10px;font-size:16px;box-sizing:border-box;" />
 
   <br><br>
@@ -23,7 +23,7 @@
 
   <!-- 结果（点击复制） -->
   <p id="result"
-     style="margin-top:20px;font-size:18px;word-break:break-all;cursor:pointer;"></p>
+     style="margin-top:20px;font-size:26px;font-weight;word-break:break-all;cursor:pointer;line-height:1.4;"></p>
 
   <!-- 提示 -->
   <p id="toast" style="height:18px;font-size:13px;"></p>
@@ -35,7 +35,7 @@
 <!-- 历史区域（独立，不影响上方布局） -->
 <div style="max-width:480px;margin:0 auto;padding:0 20px 40px;box-sizing:border-box;">
 
-  <b>历史（最多10条）</b>
+  <b>历史</b>
   <div id="history"></div>
 
 </div>
