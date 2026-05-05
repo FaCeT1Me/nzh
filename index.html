@@ -25,10 +25,7 @@
         <button id="convertBtn" onclick="convert()">转换</button>
 
         <p id="result" role="status" aria-live="polite"
-        style="margin-top:20px;margin-bottom:4px;font-size:46px;font-weight:700;word-break:break-all;cursor:pointer;line-height:1.4;transition:transform 0.15s ease;letter-spacing:0.5px">输入数字查看结果</p>
-
-        <p id="numberDisplay"
-        style="margin-top:0;margin-bottom:16px;font-size:16px;color:#999;text-align:center;min-height:22px;line-height:1.4;letter-spacing:0.3px;"></p>
+        style="margin-top:20px;margin-bottom:16px;font-size:46px;font-weight:700;word-break:break-all;cursor:pointer;line-height:1.4;transition:transform 0.15s ease;letter-spacing:0.5px">输入数字查看结果</p>
 
         <p id="toast" style="height:18px;font-size:13px;"></p>
 
@@ -52,7 +49,6 @@
         const $ = id => document.getElementById(id);
         const numInput = $('num');
         const resultEl = $('result');
-        const numberDisplayEl = $('numberDisplay');
         const toastEl = $('toast');
         const historyDiv = $('history');
         const historyEmpty = $('historyEmpty');
@@ -103,21 +99,9 @@
             toastTimer = setTimeout(() => { toastEl.textContent = ''; }, 1200);
         }
 
-        // ========== 更新显示（大写金额 + 千分位数字） ==========
-        function updateDisplay(resultText, formattedNumber) {
-            resultEl.textContent = resultText;
-            if (formattedNumber) {
-                numberDisplayEl.textContent = formattedNumber;
-                numberDisplayEl.style.display = '';
-            } else {
-                numberDisplayEl.textContent = '';
-                numberDisplayEl.style.display = 'none';
-            }
-        }
-
-        // 兼容旧调用（仅设置结果文本，清空千分位）
+        // ========== 设置结果文本 ==========
         function setResult(text) {
-            updateDisplay(text, '');
+            resultEl.textContent = text;
         }
 
         // ========== 输入框错误态视觉反馈 ==========
@@ -135,8 +119,8 @@
         function validateInput(val) {
             if (!val) return '请输入数字';
             val = val.trim();
-            // 去除千分位逗号后再校验
-            val = unformatThousands(val);
+            // 去除千分位逗号，以及将中文句号替换为英文小数点
+            val = unformatThousands(val).replace(/。/g, '.');
             if (!/^-?\d+(\.\d+)?$/.test(val)) {
                 return '格式错误';
             }
@@ -153,13 +137,15 @@
 
         // ========== 核心转换 ==========
         function convert() {
-            const rawVal = numInput.value;
-            // 统一去除千分位逗号
+            let rawVal = numInput.value;
+            // 中文句号替换为英文小数点
+            rawVal = rawVal.replace(/。/g, '.');
+            // 去除千分位逗号得到纯数字
             const val = unformatThousands(rawVal);
             const err = validateInput(val);
 
             if (err) {
-                updateDisplay(err, '');
+                setResult(err);
                 setInputError(true);
                 haptic();
                 return;
@@ -168,12 +154,11 @@
             setInputError(false);
             try {
                 const res = Nzh.cn.toMoney(val);
-                const formatted = formatThousands(val);
-                updateDisplay(res, formatted);
+                setResult(res);
                 saveHistory(val, res);
                 haptic();
             } catch (e) {
-                updateDisplay('转换失败', '');
+                setResult('转换失败');
                 setInputError(true);
             }
         }
@@ -187,17 +172,18 @@
             }
         });
 
-        // 失去焦点时自动添加千分位
+        // 失去焦点时自动添加千分位（句号也会被标准化为小数点）
         numInput.addEventListener('blur', () => {
-            const rawVal = numInput.value.trim();
+            let rawVal = numInput.value.trim();
             if (!rawVal) return;
-            // 宽松校验：是否看起来像有效数字
+            // 中文句号替换为英文小数点
+            rawVal = rawVal.replace(/。/g, '.');
             const cleaned = unformatThousands(rawVal);
             if (/^-?\d+(\.\d*)?$/.test(cleaned) && cleaned.replace('-', '').replace('.', '').length > 0) {
-                // 是有效数字，格式化为千分位
+                // 是有效数字，格式化为千分位并显示
                 numInput.value = formatThousands(cleaned);
             }
-            // 无效内容保持原样（如 "abc"、"12..3" 等）
+            // 无效内容保持原样
         });
 
         // 获得焦点时去除千分位逗号，方便编辑
@@ -282,7 +268,7 @@
                 historyNavIndex = Math.max(historyNavIndex - 1, -1);
                 if (historyNavIndex === -1) {
                     numInput.value = '';
-                    updateDisplay('输入数字查看结果', '');
+                    setResult('输入数字查看结果');
                     setInputError(false);
                 } else {
                     fillFromHistory(historyNavIndex);
@@ -290,7 +276,7 @@
             } else if (e.key === 'Escape') {
                 historyNavIndex = -1;
                 numInput.value = '';
-                updateDisplay('输入数字查看结果', '');
+                setResult('输入数字查看结果');
                 setInputError(false);
                 numInput.blur();
             }
@@ -299,8 +285,8 @@
         function fillFromHistory(index) {
             const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
             if (index >= 0 && index < list.length) {
-                // 填入纯数字（focus 状态下去掉逗号）
-                numInput.value = list[index].input;
+                // 填入时显示千分位格式（焦点事件会移除逗号，但点击历史后通常输入框会失焦，保持千分位显示）
+                numInput.value = formatThousands(list[index].input);
                 convert();
             }
         }
@@ -345,7 +331,7 @@
 
                     // 点击填充并转换
                     div.addEventListener('click', () => {
-                        numInput.value = item.input;
+                        numInput.value = formatThousands(item.input);
                         convert();
                         historyNavIndex = idx;
                         haptic();
@@ -379,15 +365,13 @@
             applyTextureBackground();
             const dark = matchMedia('(prefers-color-scheme: dark)').matches;
             document.body.style.color = dark ? '#eee' : '#000';
-            // 千分位数字显示颜色适配
-            numberDisplayEl.style.color = dark ? '#aaa' : '#999';
         }
 
         applyTheme();
         matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
         // ========== 初始化 ==========
-        updateDisplay('输入数字查看结果', '');
+        setResult('输入数字查看结果');
         renderHistory();
     </script>
 
