@@ -276,12 +276,33 @@ function renderHistory() {
   }
 }
 
-// ========== 主题跟随系统 ==========
-function applyTheme() {
+// ========== 主题与纹理背景（方案二） ==========
+function applyTextureBackground() {
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  document.body.style.background = dark ? '#111' : '#fff';
+  const baseColor = dark ? '#111' : '#fff';
+  const dotColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+
+  // 4×4 像素的 SVG，中心有一个半透明小圆点
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4">
+    <rect width="4" height="4" fill="${baseColor}"/>
+    <circle cx="2" cy="2" r="1" fill="${dotColor}"/>
+  </svg>`;
+
+  // 编码为 Data URI，注意替换引号保证兼容性
+  const encoded = encodeURIComponent(svg).replace(/'/g, "%27").replace(/"/g, "%22");
+  const dataUri = `url("data:image/svg+xml,${encoded}")`;
+
+  document.body.style.backgroundImage = dataUri;
+  document.body.style.backgroundSize = '4px 4px';
+  document.body.style.backgroundColor = baseColor; // 底色
+}
+
+function applyTheme() {
+  applyTextureBackground(); // ← 设置纹理背景
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
   document.body.style.color = dark ? '#eee' : '#000';
 }
+
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
