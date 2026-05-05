@@ -27,9 +27,32 @@
             border-top: 1px solid #ccc;
             margin-top: 20px;
         }
-        #gameHeader span {
+        #gameHeader span:first-child {
             font-size: 16px;
             font-weight: bold;
+        }
+        #gameToggle {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            position: relative;
+            vertical-align: middle;
+            transition: transform 0.2s ease;
+        }
+        #gameToggle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(180deg);
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 6px 0 6px 10px;
+            border-color: transparent transparent transparent #666;
+        }
+        #gameToggle.expanded::after {
+            transform: translate(-50%, -50%) rotate(90deg);
         }
         #gameCanvas {
             display: block;
@@ -74,7 +97,7 @@
             color: #ccc;
         }
 
-        /* ========== 全局深色模式补充 ========== */
+        /* 全局深色模式补充 */
         .dark-mode {
             color: #eee;
         }
@@ -101,6 +124,9 @@
         }
         .dark-mode #clearHistory {
             color: #aaa !important;
+        }
+        .dark-mode #gameToggle::after {
+            border-left-color: #aaa;
         }
     </style>
 </head>
@@ -139,7 +165,7 @@
         <!-- 小游戏折叠区域 -->
         <div id="gameHeader">
             <span>放松一下</span>
-            <span id="gameToggle" style="font-size:18px;color:#666;">▶</span>
+            <span id="gameToggle"></span>
         </div>
         <div id="gameSection">
             <canvas id="gameCanvas" width="480" height="200"></canvas>
@@ -413,7 +439,7 @@
         const obstacleWidth = 15;
         const obstacleHeight = 25;
         let frameCount = 0;
-        let nextSpawnFrame = 80; // 动态生成间隔
+        let nextSpawnFrame = 80;
 
         // 加载最高分
         function loadHighScore() {
@@ -532,11 +558,9 @@
             // 动态生成障碍物（随机间隔，后期更密）
             if (!gameOver && frameCount >= nextSpawnFrame) {
                 spawnObstacle();
-                // 期望间隔随分数递减，最低30帧
                 const baseInterval = 80;
                 const minInterval = 30;
                 const expectedInterval = Math.max(minInterval, baseInterval - score * 0.3);
-                // 随机偏移 -8 ~ +12，使实际间隔在 expectedInterval±10 左右波动
                 const randomOffset = Math.floor(Math.random() * 21) - 8;
                 const nextInterval = Math.max(15, expectedInterval + randomOffset);
                 nextSpawnFrame = frameCount + nextInterval;
@@ -618,23 +642,23 @@
             }
         }
 
-        // 折叠面板切换
+        // 折叠面板切换（使用 CSS 三角形类名）
         gameHeader.addEventListener('click', () => {
             const isVisible = gameSection.style.display === 'block';
             if (isVisible) {
                 gameSection.style.display = 'none';
-                gameToggle.textContent = '▶';
+                gameToggle.classList.remove('expanded');
                 stopGame();
             } else {
                 gameSection.style.display = 'block';
-                gameToggle.textContent = '▼';
+                gameToggle.classList.add('expanded');
                 startGame();
             }
         });
 
-        // 初始隐藏游戏
+        // 初始隐藏游戏，三角形默认指向右（未展开）
         gameSection.style.display = 'none';
-        gameToggle.textContent = '▶';
+        gameToggle.classList.remove('expanded');
     </script>
 </body>
 </html>
