@@ -131,7 +131,7 @@
             return null;
         }
 
-        // ========== 核心转换 (支持来自历史点击的标记) ==========
+        // ========== 核心转换 ==========
         function convert(options = {}) {
             const { isHistoryClick = false } = options;
             let rawVal = numInput.value;
@@ -150,7 +150,6 @@
             try {
                 const res = Nzh.cn.toMoney(val);
                 setResult(res);
-                // 只有非历史点击时才保存/更新历史（会去重置顶）
                 if (!isHistoryClick) {
                     saveHistory(val, res);
                 }
@@ -162,13 +161,15 @@
         }
 
         // ========== 输入框事件 ==========
+        // 回车触发
         numInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                convert(); // 正常转换，会保存历史
+                convert();
             }
         });
 
+        // 失去焦点时自动添加千分位
         numInput.addEventListener('blur', () => {
             let rawVal = numInput.value.trim();
             if (!rawVal) return;
@@ -179,6 +180,7 @@
             }
         });
 
+        // 获得焦点时去除千分位逗号
         numInput.addEventListener('focus', () => {
             const rawVal = numInput.value;
             const cleaned = unformatThousands(rawVal);
@@ -212,7 +214,7 @@
 
         function saveHistory(input, output) {
             let list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            // 去重并置顶（正常转换时使用）
+            // 去重并置顶
             list = list.filter(item => item.input !== input);
             list.unshift({
                 input,
@@ -243,44 +245,6 @@
         }
 
         clearHistoryBtn.addEventListener('click', clearAllHistory);
-
-        // ========== 历史记录键盘导航 ==========
-        let historyNavIndex = -1;
-        numInput.addEventListener('keydown', e => {
-            const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            if (list.length === 0) return;
-
-            if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                historyNavIndex = Math.min(historyNavIndex + 1, list.length - 1);
-                fillFromHistory(historyNavIndex);
-            } else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                historyNavIndex = Math.max(historyNavIndex - 1, -1);
-                if (historyNavIndex === -1) {
-                    numInput.value = '';
-                    setResult('输入数字查看结果');
-                    setInputError(false);
-                } else {
-                    fillFromHistory(historyNavIndex);
-                }
-            } else if (e.key === 'Escape') {
-                historyNavIndex = -1;
-                numInput.value = '';
-                setResult('输入数字查看结果');
-                setInputError(false);
-                numInput.blur();
-            }
-        });
-
-        function fillFromHistory(index) {
-            const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            if (index >= 0 && index < list.length) {
-                numInput.value = formatThousands(list[index].input);
-                // 标记为历史点击，避免改变排序
-                convert({ isHistoryClick: true });
-            }
-        }
 
         function renderHistory() {
             const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -331,7 +295,6 @@
                     div.addEventListener('click', () => {
                         numInput.value = formatThousands(item.input);
                         convert({ isHistoryClick: true });
-                        historyNavIndex = idx;
                         haptic();
                     });
 
