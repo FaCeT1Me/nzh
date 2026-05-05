@@ -2,111 +2,33 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>数字转中文</title>
+<title>中文大写金额</title>
 <script src="./nzh.js"></script>
 </head>
 
 <body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">
 
-<div style="text-align:center;max-width:90%;width:420px;">
+<div style="text-align:center;max-width:90%;width:400px;">
 
-  <h3>数字转中文</h3>
+  <h3>中文大写金额</h3>
 
-  <input id="num" placeholder="输入数字（自动转换）"
+  <input id="num" placeholder="输入数字"
     style="width:100%;padding:8px;font-size:16px;" />
 
   <br><br>
 
-  <!-- 模式 -->
-  <div>
-    <label><input type="radio" name="mode" value="normal"> 小写</label>
-    <label><input type="radio" name="mode" value="money" checked> 金额</label>
-  </div>
-
-  <br>
-
-  <!-- 语言 -->
-  <div>
-    <label><input type="radio" name="lang" value="cn" checked> 简体</label>
-    <label><input type="radio" name="lang" value="hk"> 繁体(HK)</label>
-    <label><input type="radio" name="lang" value="tw"> 繁体(TW)</label>
-  </div>
-
-  <br>
-
+  <button onclick="convert()">转换</button>
   <button onclick="copy()">复制</button>
-  <button onclick="toggleTheme()">主题</button>
+  <button onclick="toggleTheme()">切换主题</button>
 
   <p id="result" style="margin-top:20px;word-break:break-all;"></p>
-
-  <!-- 提示 -->
-  <p id="toast" style="height:20px;font-size:14px;"></p>
 
 </div>
 
 <script>
+const nzhcn = Nzh.cn;
 
-function getNzh(){
-  const lang = document.querySelector('input[name="lang"]:checked').value;
-  return Nzh[lang];
-}
-
-function convert(){
-  const val = document.getElementById('num').value.trim();
-  const mode = document.querySelector('input[name="mode"]:checked').value;
-  const nzh = getNzh();
-
-  if(!val){
-    document.getElementById('result').innerText = '';
-    return;
-  }
-
-  let res = '';
-
-  try{
-    if(mode === 'money'){
-      res = nzh.toMoney(val);
-    }else{
-      res = nzh.encodeB(val);
-    }
-  }catch(e){
-    res = '输入有误';
-  }
-
-  document.getElementById('result').innerText = res;
-}
-
-// 实时转换
-document.getElementById('num').addEventListener('input', convert);
-document.querySelectorAll('input[name="mode"], input[name="lang"]')
-  .forEach(el => el.addEventListener('change', convert));
-
-// ===== 复制 + 提示 =====
-let toastTimer = null;
-
-function showToast(msg){
-  const el = document.getElementById('toast');
-  el.innerText = msg;
-
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{
-    el.innerText = '';
-  }, 1000);
-}
-
-function copy(){
-  const text = document.getElementById('result').innerText;
-  if(!text){
-    showToast('无内容');
-    return;
-  }
-
-  navigator.clipboard.writeText(text)
-    .then(()=> showToast('已复制'))
-    .catch(()=> showToast('复制失败'));
-}
-
-// ===== 主题 =====
+// 自动主题
 function applyTheme(theme){
   if(theme === 'dark'){
     document.body.style.background = '#111';
@@ -118,6 +40,7 @@ function applyTheme(theme){
   localStorage.setItem('theme', theme);
 }
 
+// 初始化主题
 (function(){
   const saved = localStorage.getItem('theme');
   if(saved){
@@ -133,6 +56,18 @@ function toggleTheme(){
   applyTheme(current === 'dark' ? 'light' : 'dark');
 }
 
+// 转换
+function convert(){
+  const val = document.getElementById('num').value;
+  document.getElementById('result').innerText = nzhcn.encodeB(val);
+}
+
+// 复制
+function copy(){
+  const text = document.getElementById('result').innerText;
+  if(!text) return;
+  navigator.clipboard.writeText(text);
+}
 </script>
 
 </body>
