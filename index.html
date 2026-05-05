@@ -2,13 +2,66 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link rel="bookmark" href="apple-touch-icon.png">
     <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
     <title>人民币大写转换</title>
-    <script src="./nzh.js">
-    </script>
+    <script src="./nzh.js"></script>
+    <style>
+        /* 小游戏区域样式 */
+        #gameSection {
+            max-width: 480px;
+            margin: 20px auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+            display: none;
+        }
+        #gameHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            padding: 8px 0;
+            border-top: 1px solid #ccc;
+            margin-top: 20px;
+        }
+        #gameHeader span {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            max-width: 480px;
+            background: #f7f7f7;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 8px;
+            touch-action: none; /* 防止触摸时页面拖动 */
+        }
+        .dark-mode #gameCanvas {
+            background: #2a2a2a;
+            border-color: #444;
+        }
+        #gameTip {
+            font-size: 13px;
+            color: #888;
+            text-align: center;
+            margin: 6px 0 12px;
+        }
+        #gameScore {
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin: 6px 0;
+            color: #333;
+        }
+        .dark-mode #gameScore {
+            color: #eee;
+        }
+    </style>
 </head>
 
 <body style="margin:0;font-family:sans-serif;">
@@ -42,10 +95,20 @@
         <div id="history"></div>
         <div id="historyEmpty" style="color:#999;padding:12px 0;display:none;">暂无历史记录</div>
 
+        <!-- 小游戏折叠区域 -->
+        <div id="gameHeader">
+            <span>🎮 小游戏</span>
+            <span id="gameToggle" style="font-size:18px;color:#666;">▶</span>
+        </div>
+        <div id="gameSection">
+            <canvas id="gameCanvas" width="480" height="200"></canvas>
+            <div id="gameScore">得分: 0</div>
+            <div id="gameTip">按空格键或点击画面跳跃</div>
+        </div>
     </div>
 
     <script>
-        // ========== 工具函数 ==========
+        // ========== 原有转换功能 ==========
         const $ = id => document.getElementById(id);
         const numInput = $('num');
         const resultEl = $('result');
@@ -54,7 +117,6 @@
         const historyEmpty = $('historyEmpty');
         const clearHistoryBtn = $('clearHistory');
 
-        // ========== 千分位格式化 ==========
         function formatThousands(numStr) {
             if (!numStr) return numStr;
             numStr = numStr.replace(/,/g, '');
@@ -66,29 +128,20 @@
             const parts = numStr.split('.');
             const intPart = parts[0];
             const decPart = parts.length > 1 ? parts[1] : '';
-
             const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
             let result = (negative ? '-' : '') + formattedInt;
-            if (parts.length > 1) {
-                result += '.' + decPart;
-            }
+            if (parts.length > 1) result += '.' + decPart;
             return result;
         }
 
         function unformatThousands(str) {
-            if (!str) return str;
-            return str.replace(/,/g, '');
+            return str ? str.replace(/,/g, '') : str;
         }
 
-        // ========== 震动反馈 ==========
         function haptic() {
-            if (navigator.vibrate) {
-                navigator.vibrate(15);
-            }
+            if (navigator.vibrate) navigator.vibrate(15);
         }
 
-        // ========== Toast 提示 ==========
         let toastTimer;
         function showToast(msg) {
             toastEl.textContent = msg;
@@ -96,12 +149,10 @@
             toastTimer = setTimeout(() => { toastEl.textContent = ''; }, 1200);
         }
 
-        // ========== 设置结果文本 ==========
         function setResult(text) {
             resultEl.textContent = text;
         }
 
-        // ========== 输入框错误态视觉反馈 ==========
         function setInputError(hasError) {
             if (hasError) {
                 numInput.style.borderColor = 'crimson';
@@ -112,18 +163,13 @@
             }
         }
 
-        // ========== 校验 ==========
         function validateInput(val) {
             if (!val) return '请输入数字';
             val = val.trim();
             val = unformatThousands(val).replace(/。/g, '.');
-            if (!/^-?\d+(\.\d+)?$/.test(val)) {
-                return '格式错误';
-            }
+            if (!/^-?\d+(\.\d+)?$/.test(val)) return '格式错误';
             const pure = val.replace('-', '').replace('.', '');
-            if (pure.length > 16) {
-                return '数字过大（最多16位整数）';
-            }
+            if (pure.length > 16) return '数字过大（最多16位整数）';
             if (val.includes('.')) {
                 const d = val.split('.')[1];
                 if (d.length > 2) return '最多2位小数';
@@ -131,28 +177,23 @@
             return null;
         }
 
-        // ========== 核心转换 ==========
         function convert(options = {}) {
             const { isHistoryClick = false } = options;
             let rawVal = numInput.value;
             rawVal = rawVal.replace(/。/g, '.');
             const val = unformatThousands(rawVal);
             const err = validateInput(val);
-
             if (err) {
                 setResult(err);
                 setInputError(true);
                 haptic();
                 return;
             }
-
             setInputError(false);
             try {
                 const res = Nzh.cn.toMoney(val);
                 setResult(res);
-                if (!isHistoryClick) {
-                    saveHistory(val, res);
-                }
+                if (!isHistoryClick) saveHistory(val, res);
                 haptic();
             } catch (e) {
                 setResult('转换失败');
@@ -160,8 +201,6 @@
             }
         }
 
-        // ========== 输入框事件 ==========
-        // 回车触发
         numInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -169,7 +208,6 @@
             }
         });
 
-        // 失去焦点时自动添加千分位
         numInput.addEventListener('blur', () => {
             let rawVal = numInput.value.trim();
             if (!rawVal) return;
@@ -180,27 +218,20 @@
             }
         });
 
-        // 获得焦点时去除千分位逗号
         numInput.addEventListener('focus', () => {
             const rawVal = numInput.value;
             const cleaned = unformatThousands(rawVal);
-            if (cleaned !== rawVal) {
-                numInput.value = cleaned;
-            }
+            if (cleaned !== rawVal) numInput.value = cleaned;
         });
 
-        // ========== 结果复制与反馈 ==========
         resultEl.addEventListener('click', () => {
             const text = resultEl.textContent;
             if (!text || text === '输入数字查看结果') return;
-
             navigator.clipboard.writeText(text)
                 .then(() => {
                     showToast('✓ 已复制');
                     resultEl.style.transform = 'scale(1.06)';
-                    setTimeout(() => {
-                        resultEl.style.transform = 'scale(1)';
-                    }, 160);
+                    setTimeout(() => { resultEl.style.transform = 'scale(1)'; }, 160);
                     haptic();
                 })
                 .catch(() => {
@@ -209,18 +240,12 @@
                 });
         });
 
-        // ========== 历史记录管理 ==========
         const STORAGE_KEY = 'nzh_history_v2';
 
         function saveHistory(input, output) {
             let list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            // 去重并置顶
             list = list.filter(item => item.input !== input);
-            list.unshift({
-                input,
-                output,
-                time: Date.now()
-            });
+            list.unshift({ input, output, time: Date.now() });
             list = list.slice(0, 20);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
             renderHistory();
@@ -249,7 +274,6 @@
         function renderHistory() {
             const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
             historyDiv.innerHTML = '';
-
             if (list.length === 0) {
                 historyEmpty.style.display = 'block';
             } else {
@@ -257,84 +281,285 @@
                 list.forEach((item, idx) => {
                     const rowNumber = idx + 1;
                     const timeStr = new Date(item.time).toLocaleString('zh-CN', {
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
+                        month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
                     });
                     const div = document.createElement('div');
-                    div.style.cssText =
-                        'padding:8px 0;border-bottom:1px solid #ccc;cursor:pointer;display:flex;align-items:center;';
-
-                    // 行号
+                    div.style.cssText = 'padding:8px 0;border-bottom:1px solid #ccc;cursor:pointer;display:flex;align-items:center;';
                     const numSpan = document.createElement('span');
                     numSpan.textContent = rowNumber + '. ';
                     numSpan.style.cssText = 'color:#999;margin-right:8px;min-width:24px;text-align:right;user-select:none;';
                     div.appendChild(numSpan);
-
-                    // 左侧内容
                     const leftSpan = document.createElement('span');
                     leftSpan.textContent = `${formatThousands(item.input)} → ${item.output}`;
                     leftSpan.style.flex = '1';
                     leftSpan.style.wordBreak = 'break-all';
                     div.appendChild(leftSpan);
-
-                    // 右侧时间与删除
                     const rightSpan = document.createElement('span');
-                    rightSpan.innerHTML =
-                        `<span style="color:#888;font-size:12px;margin-right:8px;">${timeStr}</span><span style="color:crimson;font-weight:bold;cursor:pointer;user-select:none;" title="删除">✕</span>`;
+                    rightSpan.innerHTML = `<span style="color:#888;font-size:12px;margin-right:8px;">${timeStr}</span><span style="color:crimson;font-weight:bold;cursor:pointer;user-select:none;" title="删除">✕</span>`;
                     div.appendChild(rightSpan);
-
-                    // 删除按钮事件
                     rightSpan.querySelector('span:last-child').addEventListener('click', (e) => {
                         e.stopPropagation();
                         deleteHistoryItem(idx);
                     });
-
-                    // 点击整个条目
                     div.addEventListener('click', () => {
                         numInput.value = formatThousands(item.input);
                         convert({ isHistoryClick: true });
                         haptic();
                     });
-
                     historyDiv.appendChild(div);
                 });
             }
         }
 
-        // ========== 主题与纹理背景 ==========
+        // ========== 主题纹理背景 ==========
         function applyTextureBackground() {
             const dark = matchMedia('(prefers-color-scheme: dark)').matches;
             const baseColor = dark ? '#111' : '#fff';
             const dotColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4">
-            <rect width="4" height="4" fill="${baseColor}"/>
-            <circle cx="2" cy="2" r="1" fill="${dotColor}"/>
-          </svg>`;
-
+                <rect width="4" height="4" fill="${baseColor}"/>
+                <circle cx="2" cy="2" r="1" fill="${dotColor}"/>
+            </svg>`;
             const encoded = encodeURIComponent(svg).replace(/'/g, "%27").replace(/"/g, "%22");
-            const dataUri = `url("data:image/svg+xml,${encoded}")`;
-
-            document.body.style.backgroundImage = dataUri;
+            document.body.style.backgroundImage = `url("data:image/svg+xml,${encoded}")`;
             document.body.style.backgroundSize = '4px 4px';
             document.body.style.backgroundColor = baseColor;
+            // 同步 canvas 深色模式样式
+            document.body.classList.toggle('dark-mode', dark);
         }
 
         function applyTheme() {
             applyTextureBackground();
-            const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-            document.body.style.color = dark ? '#eee' : '#000';
         }
 
         applyTheme();
         matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
-        // ========== 初始化 ==========
         setResult('输入数字查看结果');
         renderHistory();
-    </script>
 
+        // ==================== 恐龙跑酷小游戏 ====================
+        const gameHeader = $('gameHeader');
+        const gameToggle = $('gameToggle');
+        const gameSection = $('gameSection');
+        const canvas = $('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameScoreSpan = $('gameScore');
+
+        let gameRunning = false;
+        let gameOver = false;
+        let score = 0;
+        let frameId = null;
+
+        // 恐龙参数
+        const dino = {
+            x: 50,
+            y: 0,
+            width: 30,
+            height: 30,
+            vy: 0,
+            grounded: true,
+            jumpPower: -8,
+            gravity: 0.5
+        };
+        const groundY = canvas.height - 30;
+        dino.y = groundY - dino.height;
+
+        // 障碍物
+        let obstacles = [];
+        const obstacleWidth = 15;
+        const obstacleHeight = 25;
+        const obstacleSpeed = 4;
+        let frameCount = 0;
+
+        function resetGame() {
+            dino.y = groundY - dino.height;
+            dino.vy = 0;
+            dino.grounded = true;
+            obstacles = [];
+            score = 0;
+            gameOver = false;
+            gameScoreSpan.textContent = '得分: 0';
+        }
+
+        function jump() {
+            if (dino.grounded && !gameOver) {
+                dino.vy = dino.jumpPower;
+                dino.grounded = false;
+            }
+            if (gameOver && gameRunning) {
+                // 重新开始
+                resetGame();
+            }
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                // 仅当游戏区域可见且焦点不在输入框时触发跳跃
+                if (gameSection.style.display !== 'none' && document.activeElement !== numInput) {
+                    jump();
+                }
+            }
+        });
+
+        // 触摸/点击 canvas 跳跃
+        canvas.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (gameSection.style.display !== 'none') {
+                jump();
+            }
+        });
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameSection.style.display !== 'none') {
+                jump();
+            }
+        });
+
+        function spawnObstacle() {
+            const obs = {
+                x: canvas.width,
+                y: groundY - obstacleHeight,
+                width: obstacleWidth,
+                height: obstacleHeight
+            };
+            obstacles.push(obs);
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            // 恐龙物理
+            dino.vy += dino.gravity;
+            dino.y += dino.vy;
+
+            if (dino.y >= groundY - dino.height) {
+                dino.y = groundY - dino.height;
+                dino.vy = 0;
+                dino.grounded = true;
+            }
+
+            // 障碍物移动
+            for (let obs of obstacles) {
+                obs.x -= obstacleSpeed;
+            }
+            obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
+
+            // 碰撞检测
+            const dinoRect = {
+                x: dino.x,
+                y: dino.y,
+                w: dino.width,
+                h: dino.height
+            };
+            for (let obs of obstacles) {
+                if (
+                    dinoRect.x < obs.x + obs.width &&
+                    dinoRect.x + dinoRect.w > obs.x &&
+                    dinoRect.y < obs.y + obs.height &&
+                    dinoRect.y + dinoRect.h > obs.y
+                ) {
+                    gameOver = true;
+                    break;
+                }
+            }
+
+            // 生成障碍物
+            if (frameCount % 80 === 0 && !gameOver) {
+                spawnObstacle();
+            }
+
+            // 计分
+            if (!gameOver && frameCount % 10 === 0) {
+                score++;
+                gameScoreSpan.textContent = '得分: ' + score;
+            }
+
+            frameCount++;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 地面
+            ctx.beginPath();
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 1;
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.stroke();
+
+            // 恐龙 (简单矩形 + 眼睛)
+            ctx.fillStyle = gameOver ? '#888' : '#2d5a27';
+            ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+            // 眼睛
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(dino.x + 18, dino.y + 8, 6, 6);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(dino.x + 20, dino.y + 10, 3, 3);
+
+            // 障碍物 (仙人掌绿色)
+            for (let obs of obstacles) {
+                ctx.fillStyle = '#2d5a27';
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            }
+
+            // 游戏结束提示
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('游戏结束', canvas.width / 2, canvas.height / 2 - 10);
+                ctx.font = '14px sans-serif';
+                ctx.fillText('点击画面重新开始', canvas.width / 2, canvas.height / 2 + 20);
+                ctx.textAlign = 'start';
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+            update();
+            draw();
+            frameId = requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            if (gameRunning) return;
+            gameRunning = true;
+            resetGame();
+            frameCount = 0;
+            frameId = requestAnimationFrame(gameLoop);
+        }
+
+        function stopGame() {
+            gameRunning = false;
+            if (frameId) {
+                cancelAnimationFrame(frameId);
+                frameId = null;
+            }
+        }
+
+        // 折叠面板切换
+        gameHeader.addEventListener('click', () => {
+            const isVisible = gameSection.style.display === 'block';
+            if (isVisible) {
+                gameSection.style.display = 'none';
+                gameToggle.textContent = '▶';
+                stopGame();
+            } else {
+                gameSection.style.display = 'block';
+                gameToggle.textContent = '▼';
+                startGame();
+            }
+        });
+
+        // 初始隐藏游戏
+        gameSection.style.display = 'none';
+        gameToggle.textContent = '▶';
+    </script>
 </body>
 </html>
