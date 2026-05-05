@@ -1,73 +1,41 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>中文大写金额</title>
-<script src="./nzh.js"></script>
+  <meta charset="UTF-8">
+  <title>数字转中文</title>
+  <script src="./nzh.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      max-width: 600px;
+      margin: 50px auto;
+    }
+    input, button {
+      font-size: 16px;
+      padding: 8px;
+      margin-top: 10px;
+    }
+  </style>
 </head>
+<body>
 
-<body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">
+<h2>数字转中文（nzh）</h2>
 
-<div style="text-align:center;max-width:90%;width:400px;">
+<input id="num" placeholder="输入数字，比如 123456" />
+<br>
+<button onclick="convert()">转换</button>
 
-  <h3>中文大写金额</h3>
-
-  <input id="num" placeholder="输入数字"
-    style="width:100%;padding:8px;font-size:16px;" />
-
-  <br><br>
-
-  <button onclick="convert()">转换</button>
-  <button onclick="copy()">复制</button>
-  <button onclick="toggleTheme()">切换主题</button>
-
-  <p id="result" style="margin-top:20px;word-break:break-all;"></p>
-
-</div>
+<p>结果：</p>
+<p id="result"></p>
 
 <script>
-const nzhcn = Nzh.cn;
+  const nzhcn = Nzh.cn;
 
-// 自动主题
-function applyTheme(theme){
-  if(theme === 'dark'){
-    document.body.style.background = '#111';
-    document.body.style.color = '#eee';
-  }else{
-    document.body.style.background = '#fff';
-    document.body.style.color = '#000';
+  function convert() {
+    const val = document.getElementById('num').value;
+    document.getElementById('result').innerText =
+      nzhcn.encodeB(val);
   }
-  localStorage.setItem('theme', theme);
-}
-
-// 初始化主题
-(function(){
-  const saved = localStorage.getItem('theme');
-  if(saved){
-    applyTheme(saved);
-  }else{
-    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    applyTheme(dark ? 'dark' : 'light');
-  }
-})();
-
-function toggleTheme(){
-  const current = localStorage.getItem('theme') || 'light';
-  applyTheme(current === 'dark' ? 'light' : 'dark');
-}
-
-// 转换
-function convert(){
-  const val = document.getElementById('num').value;
-  document.getElementById('result').innerText = nzhcn.encodeB(val);
-}
-
-// 复制
-function copy(){
-  const text = document.getElementById('result').innerText;
-  if(!text) return;
-  navigator.clipboard.writeText(text);
-}
 </script>
 
 </body>
