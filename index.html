@@ -52,7 +52,7 @@ const historyDiv = $('history');
 const historyEmpty = $('historyEmpty');
 const clearHistoryBtn = $('clearHistory');
 
-// 震动反馈（15ms 轻微触感）
+// 震动反馈
 function haptic() {
   if (navigator.vibrate) {
     navigator.vibrate(15);
@@ -67,18 +67,12 @@ function showToast(msg) {
   toastTimer = setTimeout(() => { toastEl.textContent = ''; }, 1200);
 }
 
-// 结果区占位/错误用不同颜色闪烁反馈
-function setResult(text, isError = false) {
+// 设置结果文本（不再有颜色变化）
+function setResult(text) {
   resultEl.textContent = text;
-  if (isError) {
-    resultEl.style.color = 'crimson';
-    setTimeout(() => { resultEl.style.color = ''; }, 600);
-  } else {
-    resultEl.style.color = ''; // 恢复原有颜色（继承 body）
-  }
 }
 
-// 输入框错误态视觉反馈
+// 输入框错误态视觉反馈（仅边框和阴影）
 function setInputError(hasError) {
   if (hasError) {
     numInput.style.borderColor = 'crimson';
@@ -107,13 +101,13 @@ function validateInput(val) {
   return null;
 }
 
-// ========== 核心转换 ==========
+// ========== 核心转换（仅通过按钮或回车触发） ==========
 function convert() {
   const val = numInput.value;
   const err = validateInput(val);
 
   if (err) {
-    setResult(err, true);
+    setResult(err);
     setInputError(true);
     haptic(); // 错误时震动提示
     return;
@@ -124,40 +118,24 @@ function convert() {
     const res = Nzh.cn.toMoney(val);
     setResult(res);
     saveHistory(val, res);
-    haptic(); // 成功转换也轻轻震一下，表示已完成
+    haptic(); // 成功转换也轻轻震一下
   } catch (e) {
-    setResult('转换失败', true);
+    setResult('转换失败');
     setInputError(true);
   }
 }
 
-// 实时转换（输入即转，无按钮等待）
-function onInputChange() {
-  const val = numInput.value.trim();
-  if (!val) {
-    setResult('输入数字查看结果');
-    setInputError(false);
-    return;
-  }
-  // 简单防抖，避免每键都触发校验与转换（体验更好）
-  clearTimeout(numInput._debounce);
-  numInput._debounce = setTimeout(() => {
-    convert();
-  }, 200);
-}
-
-numInput.addEventListener('input', onInputChange);
-
-// 回车仍然可触发（保留）
+// 回车触发（保留）
 numInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    convert(); // 立即转换，清除防抖
-    clearTimeout(numInput._debounce);
+    convert();
   }
 });
 
-// ========== 结果复制与反馈 ==========
+// 注意：移除了 input 实时转换监听，不自动触发
+
+// ========== 结果复制与反馈（无颜色变化） ==========
 resultEl.addEventListener('click', () => {
   const text = resultEl.textContent;
   if (!text || text === '输入数字查看结果') return;
@@ -165,12 +143,10 @@ resultEl.addEventListener('click', () => {
   navigator.clipboard.writeText(text)
     .then(() => {
       showToast('✓ 已复制');
-      // 视觉放大 + 短暂变色
+      // 仅保留放大效果
       resultEl.style.transform = 'scale(1.06)';
-      resultEl.style.color = '#2e7d32'; // 深绿
       setTimeout(() => {
         resultEl.style.transform = 'scale(1)';
-        resultEl.style.color = '';
       }, 160);
       haptic();
     })
@@ -181,7 +157,7 @@ resultEl.addEventListener('click', () => {
 });
 
 // ========== 历史记录管理 ==========
-const STORAGE_KEY = 'nzh_history_v2'; // 版本升级，存储结构含时间
+const STORAGE_KEY = 'nzh_history_v2';
 
 function saveHistory(input, output) {
   let list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -218,7 +194,7 @@ function clearAllHistory() {
 
 clearHistoryBtn.addEventListener('click', clearAllHistory);
 
-// 历史记录键盘导航
+// 历史记录键盘导航（上下箭头浏览历史，Esc 清空）
 let historyNavIndex = -1;
 numInput.addEventListener('keydown', e => {
   const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -251,7 +227,7 @@ function fillFromHistory(index) {
   const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   if (index >= 0 && index < list.length) {
     numInput.value = list[index].input;
-    convert(); // 自动转换
+    convert();
   }
 }
 
@@ -300,7 +276,7 @@ function renderHistory() {
   }
 }
 
-// ========== 主题与系统适配 ==========
+// ========== 主题跟随系统 ==========
 function applyTheme() {
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
   document.body.style.background = dark ? '#111' : '#fff';
@@ -311,7 +287,6 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme
 
 // ========== 初始化 ==========
 renderHistory();
-// 如果有历史，默认不填充输入框，保持空状态引导
 
 </script>
 
