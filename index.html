@@ -1,41 +1,184 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>数字转中文</title>
-  <script src="./nzh.js"></script>
-  <style>
-    body {
-      font-family: Arial;
-      max-width: 600px;
-      margin: 50px auto;
-    }
-    input, button {
-      font-size: 16px;
-      padding: 8px;
-      margin-top: 10px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数字转中文</title>
+<script src="./nzh.js"></script>
 </head>
-<body>
 
-<h2>数字转中文（nzh）</h2>
+<body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;">
 
-<input id="num" placeholder="输入数字，比如 123456" />
-<br>
-<button onclick="convert()">转换</button>
+<div style="width:100%;max-width:480px;padding:20px;box-sizing:border-box;text-align:center;">
 
-<p>结果：</p>
-<p id="result"></p>
+  <h3>数字转中文</h3>
+
+  <input id="num" placeholder="输入数字（自动转换）"
+    style="width:100%;padding:10px;font-size:16px;box-sizing:border-box;" />
+
+  <br><br>
+
+  <!-- 模式 -->
+  <div>
+    <label><input type="radio" name="mode" value="normal"> 小写</label>
+    <label><input type="radio" name="mode" value="money" checked> 金额</label>
+  </div>
+
+  <br>
+
+  <!-- 语言 -->
+  <div>
+    <label><input type="radio" name="lang" value="cn" checked> 简体</label>
+    <label><input type="radio" name="lang" value="hk"> 繁体</label>
+    <label><input type="radio" name="lang" value="tw"> 台灣</label>
+  </div>
+
+  <br>
+
+  <button onclick="toggleTheme()">主题</button>
+
+  <!-- 结果（点击复制） -->
+  <p id="result"
+     style="margin-top:20px;font-size:18px;word-break:break-all;cursor:pointer;"></p>
+
+  <!-- 提示 -->
+  <p id="toast" style="height:18px;font-size:13px;"></p>
+
+  <hr>
+
+  <!-- 历史 -->
+  <div style="text-align:left;">
+    <b>历史</b>
+    <div id="history"></div>
+  </div>
+
+</div>
 
 <script>
-  const nzhcn = Nzh.cn;
 
-  function convert() {
-    const val = document.getElementById('num').value;
-    document.getElementById('result').innerText =
-      nzhcn.encodeB(val);
+// ===== 核心 =====
+function getNzh(){
+  return Nzh[document.querySelector('input[name="lang"]:checked').value];
+}
+
+function convert(){
+  const val = document.getElementById('num').value.trim();
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const nzh = getNzh();
+
+  if(!val){
+    setResult('');
+    return;
   }
+
+  let res = '';
+  try{
+    res = mode === 'money' ? nzh.toMoney(val) : nzh.encodeB(val);
+  }catch{
+    res = '输入有误';
+  }
+
+  setResult(res);
+  saveHistory(val, res);
+}
+
+// ===== 结果 + 点击复制 =====
+function setResult(text){
+  const el = document.getElementById('result');
+  el.innerText = text;
+}
+
+document.getElementById('result').addEventListener('click', ()=>{
+  const text = document.getElementById('result').innerText;
+  if(!text) return;
+  navigator.clipboard.writeText(text)
+    .then(()=> showToast('已复制'))
+    .catch(()=> showToast('复制失败'));
+});
+
+// ===== 实时 =====
+document.getElementById('num').addEventListener('input', convert);
+document.querySelectorAll('input[name="mode"],input[name="lang"]')
+  .forEach(el => el.addEventListener('change', convert));
+
+// ===== toast =====
+let t;
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.innerText = msg;
+  clearTimeout(t);
+  t = setTimeout(()=> el.innerText='', 1000);
+}
+
+// ===== 历史 =====
+const KEY = 'nzh_history';
+
+function saveHistory(input, output){
+  if(!output || output === '输入有误') return;
+
+  let list = JSON.parse(localStorage.getItem(KEY) || '[]');
+
+  // 去重（同输入）
+  list = list.filter(i => i.input !== input);
+
+  list.unshift({input, output});
+
+  // 限制 10 条
+  list = list.slice(0,10);
+
+  localStorage.setItem(KEY, JSON.stringify(list));
+  renderHistory();
+}
+
+function renderHistory(){
+  const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+  const el = document.getElementById('history');
+
+  el.innerHTML = list.map(i =>
+    `<div style="padding:6px 0;border-bottom:1px solid #ccc;cursor:pointer;">
+      ${i.input} → ${i.output}
+     </div>`
+  ).join('');
+
+  // 点击填充
+  Array.from(el.children).forEach((div, idx)=>{
+    div.onclick = ()=>{
+      document.getElementById('num').value = list[idx].input;
+      convert();
+    };
+  });
+}
+
+// ===== 主题 =====
+function applyTheme(theme){
+  if(theme==='dark'){
+    document.body.style.background='#111';
+    document.body.style.color='#eee';
+  }else{
+    document.body.style.background='#fff';
+    document.body.style.color='#000';
+  }
+  localStorage.setItem('theme', theme);
+}
+
+(function(){
+  const saved = localStorage.getItem('theme');
+  if(saved){
+    applyTheme(saved);
+  }else{
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(dark?'dark':'light');
+  }
+})();
+
+function toggleTheme(){
+  const cur = localStorage.getItem('theme') || 'light';
+  applyTheme(cur==='dark'?'light':'dark');
+}
+
+// 初始化历史
+renderHistory();
+
 </script>
 
 </body>
