@@ -7,9 +7,30 @@
     <link rel="bookmark" href="apple-touch-icon.png">
     <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
     <title>人民币大写转换</title>
-    <script src="./nzh.js">
-    </script>
+    <script src="./nzh.js"></script>
     <style>
+        /* 小游戏区域样式 */
+        #gameSection {
+            max-width: 480px;
+            margin: 20px auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+            display: none;
+        }
+        #gameHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            padding: 8px 0;
+            border-top: 1px solid #ccc;
+            margin-top: 20px;
+        }
+        #gameHeader span {
+            font-size: 16px;
+            font-weight: bold;
+        }
         #gameCanvas {
             display: block;
             width: 100%;
@@ -30,18 +51,24 @@
             text-align: center;
             margin: 6px 0 12px;
         }
-        #gameScore, #gameHighScore {
+        #gameScore {
             text-align: center;
             font-weight: bold;
-            font-size: 16px;
-            margin: 4px 0;
+            font-size: 18px;
+            margin: 6px 0;
             color: #333;
         }
-        .dark-mode #gameScore, .dark-mode #gameHighScore {
+        .dark-mode #gameScore {
             color: #eee;
         }
-        #result {
-            min-height: calc(46px * 1.4 * 2); /* 两行高度 */
+        #gameHighScore {
+            text-align: center;
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .dark-mode #gameHighScore {
+            color: #ccc;
         }
     </style>
 </head>
@@ -60,7 +87,7 @@
         <button id="convertBtn" onclick="convert()">转换</button>
 
         <p id="result" role="status" aria-live="polite"
-        style="margin-top:20px;margin-bottom:16px;font-size:46px;font-weight:700;word-break:break-all;cursor:pointer;line-height:1.4;transition:transform 0.15s ease;letter-spacing:0.5px">输入数字<br>查看结果</p>
+        style="margin-top:20px;margin-bottom:16px;font-size:46px;font-weight:700;word-break:break-all;cursor:pointer;line-height:1.4;transition:transform 0.15s ease;letter-spacing:0.5px">输入数字查看结果</p>
 
         <p id="toast" style="height:18px;font-size:13px;"></p>
 
@@ -78,22 +105,20 @@
         <div id="historyEmpty" style="color:#999;padding:12px 0;display:none;">暂无历史记录</div>
 
         <!-- 小游戏折叠区域 -->
-        <div id="gameHeader" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;padding:8px 0;border-top:1px solid #ccc;margin-top:20px;">
-            <span style="font-size:16px;font-weight:bold;">🎮 小游戏</span>
+        <div id="gameHeader">
+            <span>🎮 小游戏</span>
             <span id="gameToggle" style="font-size:18px;color:#666;">▶</span>
         </div>
-        <div id="gameSection" style="display:none;max-width:480px;margin:0 auto;padding:0;box-sizing:border-box;">
+        <div id="gameSection">
             <canvas id="gameCanvas" width="480" height="200"></canvas>
-            <div style="display:flex; justify-content:center; gap:40px; margin-top:6px;">
-                <span id="gameScore">得分: 0</span>
-                <span id="gameHighScore">最高分: 0</span>
-            </div>
+            <div id="gameHighScore">最高分: 0</div>
+            <div id="gameScore">得分: 0</div>
             <div id="gameTip">按空格键或点击画面跳跃</div>
         </div>
     </div>
 
     <script>
-        // ========== 工具函数 ==========
+        // ========== 原有转换功能 ==========
         const $ = id => document.getElementById(id);
         const numInput = $('num');
         const resultEl = $('result');
@@ -102,7 +127,6 @@
         const historyEmpty = $('historyEmpty');
         const clearHistoryBtn = $('clearHistory');
 
-        // ========== 千分位格式化 ==========
         function formatThousands(numStr) {
             if (!numStr) return numStr;
             numStr = numStr.replace(/,/g, '');
@@ -136,7 +160,7 @@
         }
 
         function setResult(text) {
-            resultEl.innerHTML = text; // 允许换行，但不包含用户输入，安全
+            resultEl.textContent = text;
         }
 
         function setInputError(hasError) {
@@ -149,7 +173,6 @@
             }
         }
 
-        // ========== 校验 ==========
         function validateInput(val) {
             if (!val) return '请输入数字';
             val = val.trim();
@@ -164,7 +187,6 @@
             return null;
         }
 
-        // ========== 核心转换 ==========
         function convert(options = {}) {
             const { isHistoryClick = false } = options;
             let rawVal = numInput.value;
@@ -214,7 +236,7 @@
 
         resultEl.addEventListener('click', () => {
             const text = resultEl.textContent;
-            if (!text || text === '输入数字\n查看结果') return;
+            if (!text || text === '输入数字查看结果') return;
             navigator.clipboard.writeText(text)
                 .then(() => {
                     showToast('✓ 已复制');
@@ -322,7 +344,7 @@
         applyTheme();
         matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
-        setResult('输入数字<br>查看结果');
+        setResult('输入数字查看结果');
         renderHistory();
 
         // ==================== 恐龙跑酷小游戏 ====================
@@ -339,9 +361,6 @@
         let score = 0;
         let highScore = 0;
         let frameId = null;
-        let frameCount = 0;
-        let obstacleSpeed = 4;
-        let nextSpawnFrame = 0;
 
         // 恐龙参数
         const dino = {
@@ -357,20 +376,25 @@
         const groundY = canvas.height - 30;
         dino.y = groundY - dino.height;
 
+        // 障碍物
         let obstacles = [];
+        const obstacleWidth = 15;
+        const obstacleHeight = 25;
+        let frameCount = 0;
+        let nextSpawnFrame = 80; // 动态生成间隔
 
-        // 读取最高分
-        try {
-            highScore = parseInt(localStorage.getItem('dinoHighScore')) || 0;
-        } catch (e) {
-            highScore = 0;
+        // 加载最高分
+        function loadHighScore() {
+            const saved = parseInt(localStorage.getItem('nzh_dino_highscore'), 10);
+            highScore = isNaN(saved) ? 0 : saved;
+            gameHighScoreSpan.textContent = '最高分: ' + highScore;
         }
-        gameHighScoreSpan.textContent = '最高分: ' + highScore;
+        loadHighScore();
 
         function updateHighScore() {
             if (score > highScore) {
                 highScore = score;
-                localStorage.setItem('dinoHighScore', highScore);
+                localStorage.setItem('nzh_dino_highscore', highScore);
                 gameHighScoreSpan.textContent = '最高分: ' + highScore;
             }
         }
@@ -383,10 +407,8 @@
             score = 0;
             gameOver = false;
             frameCount = 0;
-            obstacleSpeed = 4;
-            nextSpawnFrame = 60; // 初始1秒后出现第一个障碍
+            nextSpawnFrame = 80;
             gameScoreSpan.textContent = '得分: 0';
-            gameHighScoreSpan.textContent = '最高分: ' + highScore;
         }
 
         function jump() {
@@ -409,26 +431,26 @@
             }
         });
 
+        // 触摸/点击 canvas 跳跃
         canvas.addEventListener('click', (e) => {
             e.preventDefault();
-            if (gameSection.style.display !== 'none') jump();
+            if (gameSection.style.display !== 'none') {
+                jump();
+            }
         });
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (gameSection.style.display !== 'none') jump();
+            if (gameSection.style.display !== 'none') {
+                jump();
+            }
         });
-
-        function getDifficultyMultiplier() {
-            // 分数越高，间隔越小，速度越快
-            return Math.floor(score / 50); // 每50分难度上升一级
-        }
 
         function spawnObstacle() {
             const obs = {
                 x: canvas.width,
-                y: groundY - 25,
-                width: 15 + Math.random() * 10, // 宽度稍微随机
-                height: 25
+                y: groundY - obstacleHeight,
+                width: obstacleWidth,
+                height: obstacleHeight
             };
             obstacles.push(obs);
         }
@@ -436,36 +458,32 @@
         function update() {
             if (gameOver) return;
 
-            // 动态速度：基础4，每50分增加0.3，上限12
-            const diff = getDifficultyMultiplier();
-            obstacleSpeed = Math.min(12, 4 + diff * 0.3);
+            // 动态速度：基础4，每分增加0.02，200分时为8
+            const currentSpeed = 4 + score * 0.02;
 
             // 恐龙物理
             dino.vy += dino.gravity;
             dino.y += dino.vy;
+
             if (dino.y >= groundY - dino.height) {
                 dino.y = groundY - dino.height;
                 dino.vy = 0;
                 dino.grounded = true;
             }
 
-            // 随机生成障碍物：间隔逐渐缩短
-            if (frameCount >= nextSpawnFrame && !gameOver) {
-                spawnObstacle();
-                // 基础间隔80帧，随难度减少，加入随机波动
-                const baseInterval = Math.max(30, 80 - diff * 3);
-                const randomOffset = Math.floor(Math.random() * 20);
-                nextSpawnFrame = frameCount + baseInterval + randomOffset;
-            }
-
-            // 移动障碍物
+            // 障碍物移动
             for (let obs of obstacles) {
-                obs.x -= obstacleSpeed;
+                obs.x -= currentSpeed;
             }
             obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
 
             // 碰撞检测
-            const dinoRect = { x: dino.x, y: dino.y, w: dino.width, h: dino.height };
+            const dinoRect = {
+                x: dino.x,
+                y: dino.y,
+                w: dino.width,
+                h: dino.height
+            };
             for (let obs of obstacles) {
                 if (
                     dinoRect.x < obs.x + obs.width &&
@@ -479,8 +497,21 @@
                 }
             }
 
+            // 动态生成障碍物（随机间隔，后期更密）
+            if (!gameOver && frameCount >= nextSpawnFrame) {
+                spawnObstacle();
+                // 期望间隔随分数递减，最低30帧
+                const baseInterval = 80;
+                const minInterval = 30;
+                const expectedInterval = Math.max(minInterval, baseInterval - score * 0.3);
+                // 随机偏移 -8 ~ +12，使实际间隔在 expectedInterval±10 左右波动
+                const randomOffset = Math.floor(Math.random() * 21) - 8;
+                const nextInterval = Math.max(15, expectedInterval + randomOffset);
+                nextSpawnFrame = frameCount + nextInterval;
+            }
+
             // 计分
-            if (!gameOver && frameCount % 8 === 0) {
+            if (!gameOver && frameCount % 10 === 0) {
                 score++;
                 gameScoreSpan.textContent = '得分: ' + score;
             }
@@ -499,21 +530,22 @@
             ctx.lineTo(canvas.width, groundY);
             ctx.stroke();
 
-            // 恐龙
-            ctx.fillStyle = gameOver ? '#888' : '#2d5a27';
+            // 恐龙（红色身体）
+            ctx.fillStyle = gameOver ? '#888' : '#c0392b';
             ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+            // 眼睛
             ctx.fillStyle = '#fff';
             ctx.fillRect(dino.x + 18, dino.y + 8, 6, 6);
             ctx.fillStyle = '#000';
             ctx.fillRect(dino.x + 20, dino.y + 10, 3, 3);
 
-            // 障碍物
-            ctx.fillStyle = '#2d5a27';
+            // 障碍物（绿色）
             for (let obs of obstacles) {
+                ctx.fillStyle = '#2d5a27';
                 ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
             }
 
-            // 游戏结束画面
+            // 游戏结束提示
             if (gameOver) {
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -538,6 +570,7 @@
             if (gameRunning) return;
             gameRunning = true;
             resetGame();
+            loadHighScore();
             frameId = requestAnimationFrame(gameLoop);
         }
 
@@ -549,6 +582,7 @@
             }
         }
 
+        // 折叠面板切换
         gameHeader.addEventListener('click', () => {
             const isVisible = gameSection.style.display === 'block';
             if (isVisible) {
@@ -562,7 +596,7 @@
             }
         });
 
-        // 初始状态
+        // 初始隐藏游戏
         gameSection.style.display = 'none';
         gameToggle.textContent = '▶';
     </script>
